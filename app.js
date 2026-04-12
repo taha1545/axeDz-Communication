@@ -1,44 +1,37 @@
 require('dotenv').config();
 
-const express = require('express');
-const path = require('path');
-const cors = require('cors');
-
 const db = require('./db/models');
-const ErrorHandler = require('./app/Middlewares/Handle');
-const UserRouter = require('./Routes/AuthRoute');
-const GoogleRouter = require('./Routes/GoogleRoute');
-const contactRoutes = require('./Routes/ContactRoute');
-//
-const app = express();
+const app = require('./Routes');
+const queuePublisher = require('./queues/publisher');
+const logger = require('./config/logger');
 
-// Middleware
-app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use('/public', express.static(path.join(__dirname, 'public')));
+const PORT = process.env.APP_PORT || 3001;
 
-// Routes
-app.use('/users', UserRouter);
-app.use('/auth', GoogleRouter);
-app.use('/api/contacts', contactRoutes);
-// 
-app.get('/', (req, res) => { res.json({ message: 'Welcome to the user + contact template API', token: req.query.token || null, }); });
-app.use((req, res) => { res.status(404).json({ message: 'No endpoint found for this request', }); });
-
-// error handler
-app.use(ErrorHandler);
-
-//   
-const PORT = process.env.APP_PORT;
-db.sequelize
-    .sync()
-    .then(() => {
-        console.log(' Database connected ');
-        app.listen(PORT, () => {
-            console.log(` Server is running `);
-        });
-    })
-    .catch((err) => {
-        console.error(' err to DB:', err);
+async function startServer() {
+  try {
+    await db.sequelize.sync();
+    logger.info('Database connected');
+    // 
+    await queuePublisher.connect();
+    // 
+    const server = app.listen(PORT, () => {
+      logger.info(`Server is running on port ${PORT}`);
     });
+    // Graceful shutdown
+    process.on('SIGINT', async () => {
+      logger.info('Shutting down server...');
+      server.close(async () => {
+        await queuePublisher.close();
+        await db.sequelize.close();
+        logger.info('Server shut down gracefully');
+        process.exit(0);
+      });
+    });
+
+  } catch (err) {
+    logger.error('Failed to start server:', err);
+    process.exit(1);
+  }
+}
+
+startServer();

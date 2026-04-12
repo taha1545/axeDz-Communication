@@ -7,11 +7,99 @@ services:
     environment:
       POSTGRES_USER: myuser
       POSTGRES_PASSWORD: mypassword
-      POSTGRES_DB: mytestdb
+      POSTGRES_DB: comm-db
     ports:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    networks:
+      - comm-network
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    restart: always
+    environment:
+      RABBITMQ_DEFAULT_USER: user
+      RABBITMQ_DEFAULT_PASS: password
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmqdata:/var/lib/rabbitmq
+    networks:
+      - comm-network
+
+  app:
+    build: .
+    restart: always
+    environment:
+      NODE_ENV: production
+      DB_HOST: db
+      DB_USER: myuser
+      DB_PASSWORD: mypassword
+      DB_NAME: comm-db
+      DB_PORT: 5432
+      RABBITMQ_URL: amqp://user:password@rabbitmq
+      APP_PORT: 3001
+      SMTP_HOST: smtp.example.com
+      SMTP_PORT: 587
+      SMTP_USER: user@example.com
+      SMTP_PASS: password
+      LOG_LEVEL: info
+    ports:
+      - "3001:3001"
+    depends_on:
+      - db
+      - rabbitmq
+    networks:
+      - comm-network
+
+  sms-worker:
+    build: .
+    restart: always
+    environment:
+      NODE_ENV: production
+      DB_HOST: db
+      DB_USER: myuser
+      DB_PASSWORD: mypassword
+      DB_NAME: comm-db
+      DB_PORT: 5432
+      RABBITMQ_URL: amqp://user:password@rabbitmq
+      LOG_LEVEL: info
+    command: npm run start:sms-worker
+    depends_on:
+      - db
+      - rabbitmq
+    networks:
+      - comm-network
+
+  email-worker:
+    build: .
+    restart: always
+    environment:
+      NODE_ENV: production
+      DB_HOST: db
+      DB_USER: myuser
+      DB_PASSWORD: mypassword
+      DB_NAME: comm-db
+      DB_PORT: 5432
+      RABBITMQ_URL: amqp://user:password@rabbitmq
+      SMTP_HOST: smtp.example.com
+      SMTP_PORT: 587
+      SMTP_USER: user@example.com
+      SMTP_PASS: password
+      LOG_LEVEL: info
+    command: npm run start:email-worker
+    depends_on:
+      - db
+      - rabbitmq
+    networks:
+      - comm-network
 
 volumes:
   pgdata:
+  rabbitmqdata:
+
+networks:
+  comm-network:
+    driver: bridge

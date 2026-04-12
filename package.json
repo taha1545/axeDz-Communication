@@ -1,9 +1,12 @@
 {
-  "name": "mini-chess-api",
+  "name": "axedz-communication-service",
   "version": "1.0.0",
-  "main": "App.js",
+  "main": "app.js",
   "scripts": {
+    "start": "node app.js",
     "start:dev": "nodemon app.js",
+    "start:sms-worker": "node workers/sms.worker.js",
+    "start:email-worker": "node workers/email.worker.js",
     "migrate": "npx sequelize-cli db:migrate",
     "migrate:undo": "npx sequelize-cli db:migrate:undo",
     "migrate:undo:all": "npx sequelize-cli db:migrate:undo:all",
@@ -39,6 +42,8 @@
     "pg": "^8.16.3",
     "sequelize": "^6.37.7",
     "uuid": "^11.1.0",
+    "winston": "^3.13.0",
+    "amqplib": "^0.10.4",
     "xss-clean": "^0.1.4"
   },
   "devDependencies": {
