@@ -1,8 +1,4 @@
-const { ValidationError: ExpressValidationError } = require('express-validator');
-const fs = require('fs');
-
 function errorHandler(err, req, res, next) {
-    //
     const statusCode = err.statusCode || 500;
     const errMessage = err.message || "Internal Server Error";
 
@@ -14,12 +10,10 @@ function errorHandler(err, req, res, next) {
         });
     }
 
-    res.status(statusCode).json({
+    return res.status(statusCode).json({
         success: false,
         message: errMessage,
     });
 }
 
 module.exports = errorHandler;
-
-

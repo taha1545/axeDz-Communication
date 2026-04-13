@@ -6,14 +6,16 @@ const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const ErrorHandler = require('../app/Middlewares/Handle');
+const validateRequest = require('../app/Middlewares/validate');
 const checkApiKey = require('../app/Middlewares/ApiKey');
 const communicationController = require('../Controllers/CommunicationController');
 const { sendSmsValidator } = require('../app/Validators/smsValidator');
 const { sendEmailValidator } = require('../app/Validators/emailValidator');
+const { getUsageEventsValidator } = require('../app/Validators/usageValidator');
 
 const app = express();
 
-// Security middleware
+//
 app.use(helmet());
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
@@ -34,8 +36,14 @@ app.use('/api/', limiter);
 app.get('/', (req, res) => { res.json({ message: 'Welcome to AxeDz Communication API' }); });
 
 // Communication routes
-app.post('/api/sms/send', checkApiKey, sendSmsValidator, communicationController.sendSms);
-app.post('/api/email/send', checkApiKey, sendEmailValidator, communicationController.sendEmail);
+app.post('/api/sms/send', sendSmsValidator, validateRequest, communicationController.sendSms);
+app.post('/api/email/send', sendEmailValidator, validateRequest, communicationController.sendEmail);
+
+// Analytics routes
+app.get('/api/usage-events', getUsageEventsValidator, validateRequest, communicationController.getUsageEvents);
+app.get('/api/sms/last', communicationController.getLastSms);
+app.get('/api/email/last', communicationController.getLastEmail);
+app.get('/api/stats', communicationController.getStats);
 
 
 

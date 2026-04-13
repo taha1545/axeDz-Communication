@@ -8,10 +8,6 @@ module.exports = {
         defaultValue: Sequelize.UUIDV4,
         primaryKey: true,
       },
-      user_id: {
-        type: Sequelize.UUID,
-        allowNull: false,
-      },
       api_key_id: {
         type: Sequelize.UUID,
         allowNull: false,
@@ -27,10 +23,6 @@ module.exports = {
       status: {
         type: Sequelize.ENUM('queued', 'sent', 'failed'),
         defaultValue: 'queued',
-      },
-      cost: {
-        type: Sequelize.DECIMAL(10, 2),
-        allowNull: false,
       },
       retry_count: {
         type: Sequelize.INTEGER,

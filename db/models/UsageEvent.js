@@ -5,10 +5,6 @@ module.exports = (sequelize, DataTypes) => {
       defaultValue: DataTypes.UUIDV4,
       primaryKey: true,
     },
-    user_id: {
-      type: DataTypes.UUID,
-      allowNull: false,
-    },
     api_key_id: {
       type: DataTypes.UUID,
       allowNull: false,
@@ -16,6 +12,11 @@ module.exports = (sequelize, DataTypes) => {
     service_type: {
       type: DataTypes.ENUM('sms', 'email'),
       allowNull: false,
+    },
+    unit_cost: {
+      type: DataTypes.DECIMAL(10, 2),
+      allowNull: false,
+      defaultValue: 0.0,
     },
     quantity: {
       type: DataTypes.INTEGER,

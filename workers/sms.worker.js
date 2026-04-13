@@ -1,8 +1,7 @@
 const amqp = require('amqplib');
 const config = require('../config/rabbitmq');
 const logger = require('../config/logger');
-const db = require('../db/models');
-const { SmsLog } = db;
+const smsWorkerLogic = require('../worker-logic/smsWorkerLogic');
 
 class SmsWorker {
   constructor() {
@@ -14,7 +13,7 @@ class SmsWorker {
     try {
       this.connection = await amqp.connect(config.url);
       this.channel = await this.connection.createChannel();
-      await this.channel.prefetch(1); 
+      await this.channel.prefetch(1);
       logger.info('SMS Worker connected to RabbitMQ');
     } catch (error) {
       logger.error('SMS Worker failed to connect to RabbitMQ', error);
@@ -31,50 +30,26 @@ class SmsWorker {
       logger.info(`SMS Worker waiting for messages in queue: ${queue}`);
 
       this.channel.consume(queue, async (msg) => {
-        if (msg) {
-          try {
-            const data = JSON.parse(msg.content.toString());
-            await this.processSms(data);
+        if (!msg) return;
+
+        const data = JSON.parse(msg.content.toString());
+
+        try {
+          await smsWorkerLogic.processSms(data);
+          this.channel.ack(msg);
+        } catch (error) {
+          logger.error('Error processing SMS message', error);
+          if (smsWorkerLogic.shouldRetry(data)) {
+            data.retry_count = (data.retry_count || 0) + 1;
+            await this.channel.sendToQueue(queue, Buffer.from(JSON.stringify(data)), { persistent: true });
+          } else {
             this.channel.ack(msg);
-          } catch (error) {
-            logger.error('Error processing SMS message', error);
-            const data = JSON.parse(msg.content.toString());
-            if (data.retry_count < 3) {
-              data.retry_count += 1;
-              await this.channel.sendToQueue(queue, Buffer.from(JSON.stringify(data)), { persistent: true });
-            } else {
-              this.channel.ack(msg);
-              logger.error('Max retries reached for SMS', data);
-            }
+            logger.error('Max retries reached for SMS', data);
           }
         }
       });
     } catch (error) {
       logger.error('Error starting SMS Worker', error);
-    }
-  }
-
-  async processSms(data) {
-    const { id, to_number, message, cost, user_id, api_key_id } = data;
-
-    // 
-    logger.info('Sending SMS', { to_number, message });
-
-    // 
-    const success = Math.random() > 0.2; 
-
-    if (success) {
-      await SmsLog.update(
-        { status: 'sent', sent_at: new Date() },
-        { where: { id } }
-      );
-      logger.info('SMS sent successfully', { id });
-    } else {
-      await SmsLog.update(
-        { status: 'failed', retry_count: data.retry_count + 1 },
-        { where: { id } }
-      );
-      throw new Error('SMS sending failed');
     }
   }
 
@@ -89,7 +64,6 @@ class SmsWorker {
   }
 }
 
-// 
 process.on('SIGINT', async () => {
   logger.info('Shutting down SMS Worker...');
   await worker.close();

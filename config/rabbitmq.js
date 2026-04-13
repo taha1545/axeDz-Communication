@@ -6,4 +6,7 @@ module.exports = {
     sms: 'sms_queue',
     email: 'email_queue',
   },
+  options: {
+    heartbeat: 30,
+  }
 };
