@@ -1,12 +1,17 @@
 {
   "name": "axedz-communication-service",
   "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "workers/email-worker",
+    "workers/sms-worker"
+  ],
   "main": "app.js",
   "scripts": {
     "start": "node app.js",
     "start:dev": "nodemon app.js",
-    "start:sms-worker": "node workers/sms.worker.js",
-    "start:email-worker": "node workers/email.worker.js",
+    "start:sms-worker": "node workers/sms-worker/src/index.js",
+    "start:email-worker": "node workers/email-worker/src/index.js",
     "migrate": "npx sequelize-cli db:migrate",
     "migrate:undo": "npx sequelize-cli db:migrate:undo",
     "migrate:undo:all": "npx sequelize-cli db:migrate:undo:all",

@@ -26,6 +26,21 @@ A production-ready Communication Service (CPaaS) built with Node.js, Express, an
 - Logging: Winston
 - Security: Helmet, CORS, XSS protection, rate limiting
 
+## Worker Services
+
+The worker services are now organized under `workers/`, with dedicated packages for the email and SMS processors.
+
+- `workers/email-worker`: dedicated email processor package
+- `workers/sms-worker`: dedicated SMS processor package
+- `workers/common`: shared queue, logger, and database code
+
+Run the workers from the root using:
+
+- `npm run start:email-worker`
+- `npm run start:sms-worker`
+
+See `workers/README.md` for project-specific Docker and environment setup.
+
 ## API Documentation
 
 See API_DOCUMENTATION.md for detailed API endpoints and usage.
