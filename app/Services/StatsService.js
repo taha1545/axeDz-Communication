@@ -1,109 +1,103 @@
 const db = require('../../db/models');
 const { UsageEvent, SmsLog, EmailLog } = db;
+const { fn, col, literal } = db.sequelize;
 
-class StatsService {
-  async getUsageEvents(apiKeyRecord, options = {}) {
-    const { limit = 10, offset = 0 } = options;
-
-    const events = await UsageEvent.findAll({
-      where: { api_key_id: apiKeyRecord.id },
-      order: [['created_at', 'DESC']],
+// 
+const getUsageEvents = async (apiKeyId, { limit = 10, offset = 0 } = {}) => {
+  //
+  const { rows, count } = await UsageEvent.findAndCountAll({
+    where: { api_key_id: apiKeyId },
+    order: [['created_at', 'DESC']],
+    limit,
+    offset,
+  });
+  // 
+  return {
+    events: rows,
+    pagination: {
+      total: count,
       limit,
       offset,
-    });
+      hasMore: offset + limit < count,
+    },
+  };
+};
 
-    const total = await UsageEvent.count({
-      where: { api_key_id: apiKeyRecord.id },
-    });
+// 
+const getLastRecord = (Model, apiKeyId) => {
+  return Model.findOne({
+    where: { api_key_id: apiKeyId },
+    order: [['created_at', 'DESC']],
+  });
+};
 
-    return {
-      events,
-      pagination: {
-        total,
-        limit,
-        offset,
-        hasMore: offset + limit < total,
-      },
+const getLastSms = (apiKeyId) => getLastRecord(SmsLog, apiKeyId);
+const getLastEmail = (apiKeyId) => getLastRecord(EmailLog, apiKeyId);
+
+// 
+const getMessageStats = async (Model, apiKeyId) => {
+  const result = await Model.findOne({
+    where: { api_key_id: apiKeyId },
+    attributes: [
+      [fn('COUNT', col('id')), 'total'],
+      [fn('SUM', literal(`CASE WHEN status = 'sent' THEN 1 ELSE 0 END`)), 'sent'],
+      [fn('SUM', literal(`CASE WHEN status = 'failed' THEN 1 ELSE 0 END`)), 'failed'],
+      [fn('SUM', literal(`CASE WHEN status = 'queued' THEN 1 ELSE 0 END`)), 'pending'],
+    ],
+    raw: true,
+  });
+
+  return {
+    total: Number(result.total) || 0,
+    sent: Number(result.sent) || 0,
+    failed: Number(result.failed) || 0,
+    pending: Number(result.pending) || 0,
+  };
+};
+
+// 
+const getUsageStats = async (apiKeyId) => {
+  const results = await UsageEvent.findAll({
+    where: { api_key_id: apiKeyId },
+    attributes: [
+      'service_type',
+      [fn('COUNT', col('id')), 'count'],
+      [fn('SUM', col('total_cost')), 'cost'],
+    ],
+    group: ['service_type'],
+    raw: true,
+  });
+
+  const stats = {
+    sms: { count: 0, cost: 0 },
+    email: { count: 0, cost: 0 },
+  };
+
+  for (const row of results) {
+    stats[row.service_type] = {
+      count: Number(row.count),
+      cost: Number(row.cost),
     };
   }
 
-  async getLastSms(apiKeyRecord) {
-    const lastSms = await SmsLog.findOne({
-      where: { api_key_id: apiKeyRecord.id },
-      order: [['created_at', 'DESC']],
-    });
+  return stats;
+};
 
-    return lastSms;
-  }
+// 
+const getStats = async (apiKeyId) => {
+  const [sms, email, usage] = await Promise.all([
+    getMessageStats(SmsLog, apiKeyId),
+    getMessageStats(EmailLog, apiKeyId),
+    getUsageStats(apiKeyId),
+  ]);
 
-  async getLastEmail(apiKeyRecord) {
-    const lastEmail = await EmailLog.findOne({
-      where: { api_key_id: apiKeyRecord.id },
-      order: [['created_at', 'DESC']],
-    });
+  return { sms, email, usage };
+};
 
-    return lastEmail;
-  }
 
-  async getStats(apiKeyRecord) {
-    const [smsStats, emailStats, usageStats] = await Promise.all([
-      this.getSmsStats(apiKeyRecord.id),
-      this.getEmailStats(apiKeyRecord.id),
-      this.getUsageStats(apiKeyRecord.id),
-    ]);
-
-    return {
-      sms: smsStats,
-      email: emailStats,
-      usage: usageStats,
-    };
-  }
-
-  async getSmsStats(apiKeyId) {
-    const [total, sent, failed, pending] = await Promise.all([
-      SmsLog.count({ where: { api_key_id: apiKeyId } }),
-      SmsLog.count({ where: { api_key_id: apiKeyId, status: 'sent' } }),
-      SmsLog.count({ where: { api_key_id: apiKeyId, status: 'failed' } }),
-      SmsLog.count({ where: { api_key_id: apiKeyId, status: 'queued' } }),
-    ]);
-
-    return { total, sent, failed, pending };
-  }
-
-  async getEmailStats(apiKeyId) {
-    const [total, sent, failed, pending] = await Promise.all([
-      EmailLog.count({ where: { api_key_id: apiKeyId } }),
-      EmailLog.count({ where: { api_key_id: apiKeyId, status: 'sent' } }),
-      EmailLog.count({ where: { api_key_id: apiKeyId, status: 'failed' } }),
-      EmailLog.count({ where: { api_key_id: apiKeyId, status: 'queued' } }),
-    ]);
-
-    return { total, sent, failed, pending };
-  }
-
-  async getUsageStats(apiKeyId) {
-    const usage = await UsageEvent.findAll({
-      where: { api_key_id: apiKeyId },
-      attributes: [
-        'service_type',
-        [db.sequelize.fn('SUM', db.sequelize.col('total_cost')), 'total_cost'],
-        [db.sequelize.fn('COUNT', db.sequelize.col('id')), 'count'],
-      ],
-      group: ['service_type'],
-    });
-
-    const stats = { sms: { count: 0, cost: 0 }, email: { count: 0, cost: 0 } };
-
-    usage.forEach(item => {
-      const service = item.service_type;
-      stats[service] = {
-        count: parseInt(item.dataValues.count),
-        cost: parseFloat(item.dataValues.total_cost),
-      };
-    });
-
-    return stats;
-  }
-}
-
-module.exports = new StatsService();
+module.exports = {
+  getUsageEvents,
+  getLastSms,
+  getLastEmail,
+  getStats,
+};

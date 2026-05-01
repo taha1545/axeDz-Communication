@@ -17,7 +17,7 @@ async function startServer() {
     const server = app.listen(PORT, () => {
       logger.info(`Server is running on port ${PORT}`);
     });
-    // Graceful shutdown
+    // 
     process.on('SIGINT', async () => {
       logger.info('Shutting down server...');
       server.close(async () => {

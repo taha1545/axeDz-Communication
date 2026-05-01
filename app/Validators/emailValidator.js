@@ -19,7 +19,7 @@ const sendEmailValidator = [
     .exists({ checkFalsy: true })
     .withMessage('message is required')
     .bail()
-    .isLength({ min: 1, max: 1000 })
+    .isLength({ min: 1, max: 1200 })
     .withMessage('Message must not exceed 1000 characters')
     .trim(),
   body('body_type')

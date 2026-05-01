@@ -3,18 +3,23 @@ const axios = require('axios');
 class ApiKeyValidator {
     async validateApiKey(apiKey) {
         try {
-            const response = await axios.post(`${process.env.AUTH_SERVICE_URL}/verify-api-key`, {
-                api_key: apiKey
-            });
-
-            if (response.data.valid) {
+            const response = await axios.post(
+                `${process.env.AUTH_SERVICE_URL}/api-keys/validate`,
+                { key: apiKey }
+            );
+            //
+            const data = response.data;
+            //
+            if (data.success) {
                 return {
-                    id: response.data.user_id,
+                    id: data.apiKey.id,
+                    user_id: data.apiKey.user_id,
+                    key: data.apiKey.key,
                 };
-            } else {
-                throw new Error('Invalid API key');
             }
+            throw new Error('Invalid API key');
         } catch (error) {
+            console.error(error.response?.data || error.message);
             throw new Error('API key validation failed');
         }
     }

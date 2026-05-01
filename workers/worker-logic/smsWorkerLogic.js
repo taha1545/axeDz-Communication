@@ -6,11 +6,12 @@ const logger = require('../config/logger');
 
 class SmsWorkerLogic {
   async sendSmsToProvider({ to_number, message }) {
+    //
     if (!smsConfig.apiKey || !smsConfig.apiUrl) {
       logger.warn('SMS provider config is missing; using stubbed provider for local processing');
       return true;
     }
-
+    //
     const payload = {
       to: to_number,
       from: smsConfig.fromNumber,

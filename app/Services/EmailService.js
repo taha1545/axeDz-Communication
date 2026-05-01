@@ -6,21 +6,22 @@ const logger = require('../../config/logger');
 
 class EmailService {
   async sendEmail(apiKeyRecord, toEmail, subject, message, body_type = 'text') {
-    //
+
     const cost = parseFloat(process.env.EMAIL_COST) || 0.01;
 
     const result = await db.sequelize.transaction(async (transaction) => {
       // Create email log
       const emailLog = await EmailLog.create({
-        api_key_id: apiKeyRecord,
+        api_key_id: apiKeyRecord.key,
         to_email: toEmail,
         subject,
         body: message,
         body_type,
       }, { transaction });
+
       // Log usage event
       await UsageEvent.create({
-        api_key_id: apiKeyRecord,
+        api_key_id: apiKeyRecord.key,
         service_type: 'email',
         unit_cost: cost,
         quantity: 1,
@@ -30,6 +31,7 @@ class EmailService {
 
       return emailLog;
     });
+
     // Publish to queue 
     try {
       await queuePublisher.publish(config.queues.email, {
@@ -38,7 +40,7 @@ class EmailService {
         subject,
         message,
         body_type,
-        api_key_id: apiKeyRecord,
+        api_key_id: apiKeyRecord.key,
         retry_count: 0,
       });
     } catch (error) {

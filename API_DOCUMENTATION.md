@@ -1,16 +1,5 @@
 # AxeDz Communication Service - API Documentation
 
-## Quick Start
-
-**Base URL:** `http://localhost:3001/api`
-
-**Authentication:** All requests require `X-API-Key` header
-```bash
--H "X-API-Key: your_api_key_here"
-```
-
-## Endpoints
-
 ### SMS
 
 #### Send SMS

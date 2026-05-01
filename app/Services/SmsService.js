@@ -5,20 +5,21 @@ const config = require('../../config/rabbitmq');
 const logger = require('../../config/logger');
 
 class SmsService {
-    async sendSms(apiKeyRecord, toNumber, message) {
+    async sendSms(apiKeyRecord, toNumber, message, provider = null) {
         const cost = parseFloat(process.env.SMS_COST) || 0.05;
 
         const result = await db.sequelize.transaction(async (transaction) => {
             // Create SMS log
             const smsLog = await SmsLog.create({
-                api_key_id: apiKeyRecord,
+                api_key_id: apiKeyRecord.key,
                 to_number: toNumber,
                 message,
+                provider,
             }, { transaction });
 
             // Log usage event
             await UsageEvent.create({
-                api_key_id: apiKeyRecord,
+                api_key_id: apiKeyRecord.key,
                 service_type: 'sms',
                 unit_cost: cost,
                 quantity: 1,
@@ -35,7 +36,7 @@ class SmsService {
                 id: result.id,
                 to_number: toNumber,
                 message,
-                api_key_id: apiKeyRecord,
+                api_key_id: apiKeyRecord.key,
                 retry_count: 0,
             });
         } catch (error) {

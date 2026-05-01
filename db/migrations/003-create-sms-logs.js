@@ -20,6 +20,10 @@ module.exports = {
         type: Sequelize.TEXT,
         allowNull: false,
       },
+      provider: {
+        type: Sequelize.STRING,
+        allowNull: true,
+      },
       status: {
         type: Sequelize.ENUM('queued', 'sent', 'failed'),
         defaultValue: 'queued',
